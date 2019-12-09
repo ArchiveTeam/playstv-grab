@@ -41,7 +41,8 @@ end
 
 allowed = function(url, parenturl)
   if string.match(url, "'+")
-      or string.match(url, "[<>\\%*%$;%^%[%],%(%){}]") then
+      or string.match(url, "[<>\\%*%$;%^%[%],%(%){}]")
+      or string.match(url, "^https?://[^/]*plays%.tv/game/") then
     return false
   end
 
