@@ -14,6 +14,7 @@ local addedtolist = {}
 local abortgrab = false
 
 local ids = {}
+local allowed_urls = {}
 local discovered = {}
 
 for ignore in io.open("ignore-list", "r"):lines() do
@@ -43,6 +44,12 @@ allowed = function(url, parenturl)
   if string.match(url, "'+")
       or string.match(url, "[<>\\%*%$;%^%[%],%(%){}]")
       or string.match(url, "^https?://[^/]*plays%.tv/game/") then
+      or string.match(url, "^https?://[^/]*plays%.tv/video/[0-9a-f]+/.+[%?&]page=[0-9]")
+      or not (
+        string.match(url, "^https?://[^/]*plays%.tv/")
+        or string.match(url, "^https?://[^/]*akamaihd%.net/")
+        or string.match(url, "^https?://[^/]*playscdn%.tv/")
+      ) then
     return false
   end
 
@@ -66,8 +73,13 @@ allowed = function(url, parenturl)
     tested[s] = tested[s] + 1
   end
 
-  if string.match(url, "^https?://[^/]*akamaihd%.net/")
-      or string.match(url, "^https?://[^/]*playscdn%.tv/") then
+  if allowed_urls[url] then
+    return true
+  end
+
+  if (string.match(url, "^https?://[^/]*akamaihd%.net/")
+      or string.match(url, "^https?://[^/]*playscdn%.tv/"))
+      and not (item_type == "video" and string.match(url, "%.mp4$")) then
     return true
   end
 
@@ -103,10 +115,13 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   
   downloaded[url] = true
 
-  local function check(urla)
+  local function check(urla, force)
     local origurl = url
     local url = string.match(urla, "^([^#]+)")
     local url_ = string.gsub(string.match(url, "^(.-)%.?$"), "&amp;", "&")
+    if force then
+      allowed_urls[url_] = true
+    end
     if (downloaded[url_] ~= true and addedtolist[url_] ~= true)
         and allowed(url_, origurl) then
       table.insert(urls, { url=url_ })
@@ -115,29 +130,33 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     end
   end
 
-  local function checknewurl(newurl)
-    if string.match(newurl, "^https?:////") then
-      check(string.gsub(newurl, ":////", "://"))
+  local function checknewurl(newurl, force)
+    if string.match(newurl, "%s+") then
+      for s in string.gmatch(newurl, "([^%s]+)") do
+        checknewurl(s, force)
+      end
+    elseif string.match(newurl, "^https?:////") then
+      check(string.gsub(newurl, ":////", "://"), force)
     elseif string.match(newurl, "^https?://") then
-      check(newurl)
+      check(newurl, force)
     elseif string.match(newurl, "^https?:\\/\\?/") then
-      check(string.gsub(newurl, "\\", ""))
+      check(string.gsub(newurl, "\\", ""), force)
     elseif string.match(newurl, "^\\/\\/") then
-      check(string.match(url, "^(https?:)")..string.gsub(newurl, "\\", ""))
+      check(string.match(url, "^(https?:)") .. string.gsub(newurl, "\\", ""), force)
     elseif string.match(newurl, "^//") then
-      check(string.match(url, "^(https?:)")..newurl)
+      check(string.match(url, "^(https?:)") .. newurl, force)
     elseif string.match(newurl, "^\\/") then
-      check(string.match(url, "^(https?://[^/]+)")..string.gsub(newurl, "\\", ""))
+      check(string.match(url, "^(https?://[^/]+)") .. string.gsub(newurl, "\\", ""), force)
     elseif string.match(newurl, "^/") then
-      check(string.match(url, "^(https?://[^/]+)")..newurl)
+      check(string.match(url, "^(https?://[^/]+)") .. newurl, force)
     elseif string.match(newurl, "^%./") then
-      checknewurl(string.match(newurl, "^%.(.+)"))
+      checknewurl(string.match(newurl, "^%.(.+)"), force)
     end
   end
 
-  local function checknewshorturl(newurl)
+  local function checknewshorturl(newurl, force)
     if string.match(newurl, "^%?") then
-      check(string.match(url, "^(https?://[^%?]+)")..newurl)
+      check(string.match(url, "^(https?://[^%?]+)") .. newurl, force)
     elseif not (string.match(newurl, "^https?:\\?/\\?//?/?")
         or string.match(newurl, "^[/\\]")
         or string.match(newurl, "^%./")
@@ -147,7 +166,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         or string.match(newurl, "^android%-app:")
         or string.match(newurl, "^ios%-app:")
         or string.match(newurl, "^%${")) then
-      check(string.match(url, "^(https?://.+/)")..newurl)
+      check(string.match(url, "^(https?://.+/)") .. newurl, force)
     end
   end
 
@@ -162,6 +181,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   if allowed(url, nil) and status_code == 200 and not (
       string.match(url, "^https?://[^/]*akamaihd%.net/")
       or string.match(url, "^https?://[^/]*playscdn%.tv/")
+      or string.match(url, "%?_t=")
     ) then
     html = read_file(file)
     if string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+$") then
@@ -194,6 +214,29 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       if not new then
         return urls
       end
+    elseif string.match(url, "^https?://[^/]*plays%.tv/video/[0-9a-f]+") then
+      local video_data = string.match(html, "<video%s+poster[^>]+>(.-)</video>")
+      if video_data == nil then
+        io.stdout:write("Video data not found.")
+        io.stdout:flush()
+        abortgrab = true
+      end
+      local selected_res = 0
+      local selected_url = nil
+      for source in string.gmatch(video_data, "<source%s+([^>]+)>") do
+        local res = tonumber(string.match(source, 'res="([0-9]+)"'))
+        local newurl = string.match(source, 'src="([^"]+)"')
+        if res <= 720 and res > selected_res then
+          selected_url = newurl
+          selected_res = res
+        end
+      end
+      if selected_url == nil then
+        io.stdout:write("Could not find video URL.")
+        io.stdout:flush()
+        abortgrab = true
+      end
+      checknewurl(selected_url, true)
     end
     for newurl in string.gmatch(string.gsub(html, "&quot;", '"'), '([^"]+)') do
       checknewurl(newurl)
