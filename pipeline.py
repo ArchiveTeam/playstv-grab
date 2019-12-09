@@ -61,7 +61,7 @@ if not WGET_LUA:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20191208.01'
+VERSION = '20191209.01'
 USER_AGENT = 'Archive Team'
 TRACKER_ID = 'playstv'
 TRACKER_HOST = 'tracker.archiveteam.org'
@@ -200,6 +200,9 @@ class WgetArgs(object):
         if item_type == 'user':
             wget_args.extend(['--warc-header', 'playstv-user: ' + item_value])
             wget_args.append('https://plays.tv/u/' + item_value)
+        elif item_type == 'video':
+            wget_args.extend(['--warc-header', 'playstv-video: ' + item_value])
+            wget_args.append('https://plays.tv/video/' + item_value)
         else:
             raise Exception('Unknown item')
 
