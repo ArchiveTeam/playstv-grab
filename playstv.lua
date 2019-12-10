@@ -17,6 +17,8 @@ local ids = {}
 local allowed_urls = {}
 local discovered = {}
 
+ids[item_value] = true
+
 for ignore in io.open("ignore-list", "r"):lines() do
   downloaded[ignore] = true
 end
@@ -120,7 +122,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     end
     local match = string.match(url, "^https?://[^/]*plays%.tv/u/([0-9a-zA-Z%-_]+)")
     if match then
-      check("https://plays.tv/playsapi/usersys/v1/user/" .. match)
+      check("https://plays.tv/playsapi/usersys/v1/user/" .. match, true)
     end
     if (downloaded[url_] ~= true and addedtolist[url_] ~= true)
         and allowed(url_, origurl) then
@@ -193,6 +195,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         io.stdout:flush()
         abortgrab = true
       end
+      discovered["user:" .. data["id"]] = true
+      if not ids[data["id"]] then
+        return urls
+      end
       ids[data["id"]] = true
       ids[data["username"]] = true
       check("https://plays.tv/playsapi/usersys/v1/user/" .. data["username"])
@@ -200,7 +206,6 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       check("https://plays.tv/ws/orbital/profile/" .. data["id"])
       check("https://plays.tv/ws/orbital/profile/" .. data["id"] .. "?_orbitalapp=1")
       check("https://plays.tv/u/" .. data["username"])
-      discovered["user:" .. data["id"]] = true
     elseif string.match(url, "^https?://[^/]*plays%.tv/playsapi/feedsys/v1/media/") then
       local data = load_json_file(html)
       if data["feedId"] == nil then
@@ -231,7 +236,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     elseif string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+/follow...%?page=[0-9]+$") then
       local user = string.match(url, "/u/([^/]+)/")
       local new = false
-      for s in string.gmatch(url, "/u/([^/]+)") do
+      for s in string.gmatch(html, "/u/([0-9a-zA-Z%-_]+)") do
         if s ~= user then
           new = true
         end
@@ -296,13 +301,13 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   io.stdout:write(url_count .. "=" .. status_code .. " " .. url["url"] .. "  \n")
   io.stdout:flush()
 
-  if item_type == "user"
+  --[[if item_type == "user"
       and string.match(url["url"], "^https?://[^/]*plays%.tv/playsapi/usersys/v1/user/[0-9a-f]+$") then
     ids[string.match(url["url"], "([0-9a-f]+)$")] = true
   elseif item_type == "video"
       and string.match(url["url"], "^https?://[^/]*plays%.tv/playsapi/feedsys/v1/media/[0-9a-f]+$") then
     ids[string.match(url["url"], "([0-9a-f]+)$")] = true
-  end
+  end]]
 
   if status_code >= 300 and status_code <= 399 then
     local newloc = string.match(http_stat["newloc"], "^([^#]+)")
