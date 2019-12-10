@@ -214,7 +214,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         abortgrab = true
       end
       check("https://plays.tv/video/" .. data["feedId"])
-    elseif string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+$") then
+    elseif string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+$")
+        or string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+/videos")
+        or string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+/featuring") then
       local user_id = string.match(html, '{"target_user_id":"([0-9a-f]+)","action":"report"}')
       if user_id == nil then
         io.stdout:write("Could not find target_user_id.")
@@ -222,7 +224,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         abortgrab = true
       end
       ids[user_id] = true
-      local data = string.match(html, "<div%s+class=\"mod%s+mod%-user%-videos%s+activity%-feed\"[^>]+data%-conf='({[^}]+})'")
+      local data = string.match(html, "<div%s+class=\"mod%s+mod%-user%-videos[^\"]+activity%-feed\"[^>]+data%-conf='({[^}]+})'")
       if data ~= nil then
         check_scroll_url(load_json_file(data))
       end
@@ -236,6 +238,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     elseif string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+/follow...%?page=[0-9]+$") then
       local user = string.match(url, "/u/([^/]+)/")
       local new = false
+      check(string.gsub(url, "[0-9]+$", "1"))
       for s in string.gmatch(html, "/u/([0-9a-zA-Z%-_]+)") do
         if s ~= user then
           new = true
