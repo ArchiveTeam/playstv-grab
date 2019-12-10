@@ -39,7 +39,8 @@ WGET_LUA = find_executable(
     'Wget+Lua',
     [
         'GNU Wget 1.14.lua.20130523-9a5c',
-        'GNU Wget 1.14.lua.20160530-955376b'
+        'GNU Wget 1.14.lua.20160530-955376b',
+        'GNU Wget 1.20.3-at-lua'
     ],
     [
         './wget-lua',
@@ -61,7 +62,7 @@ if not WGET_LUA:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20191210.02'
+VERSION = '20191210.03'
 USER_AGENT = 'Archive Team'
 TRACKER_ID = 'playstv'
 TRACKER_HOST = 'tracker.archiveteam.org'
