@@ -43,7 +43,7 @@ end
 allowed = function(url, parenturl)
   if string.match(url, "'+")
       or string.match(url, "[<>\\%*%$;%^%[%],%(%){}]")
-      or string.match(url, "^https?://[^/]*plays%.tv/game/") then
+      or string.match(url, "^https?://[^/]*plays%.tv/game/")
       or string.match(url, "^https?://[^/]*plays%.tv/video/[0-9a-f]+/.+[%?&]page=[0-9]")
       or not (
         string.match(url, "^https?://[^/]*plays%.tv/")
@@ -56,10 +56,6 @@ allowed = function(url, parenturl)
   local match = string.match(url, "^https?://[^/]*plays%.tv/video/([0-9a-f]+)")
   if match ~= nil then
     discovered["video:" .. match] = true
-  end
-  match = string.match(url, "^https?://[^/]*plays%.tv/u/([0-9a-zA-Z%-_]+)")
-  if match ~= nil then
-    discovered["user:" .. match] = true
   end
 
   local tested = {}
@@ -122,6 +118,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     if force then
       allowed_urls[url_] = true
     end
+    local match = string.match(url, "^https?://[^/]*plays%.tv/u/([0-9a-zA-Z%-_]+)")
+    if match then
+      check("https://plays.tv/playsapi/usersys/v1/user/" .. match)
+    end
     if (downloaded[url_] ~= true and addedtolist[url_] ~= true)
         and allowed(url_, origurl) then
       table.insert(urls, { url=url_ })
@@ -178,13 +178,38 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     check(newurl .. "format=application%2Fjson&id=UserVideosMod")
   end
 
-  if allowed(url, nil) and status_code == 200 and not (
-      string.match(url, "^https?://[^/]*akamaihd%.net/")
-      or string.match(url, "^https?://[^/]*playscdn%.tv/")
-      or string.match(url, "%?_t=")
+  if (allowed(url, nil)
+      or string.match(url, "^https?://[^/]*plays%.tv/playsapi/usersys/v1/user/"))
+      and status_code == 200 and not (
+        string.match(url, "^https?://[^/]*akamaihd%.net/")
+        or string.match(url, "^https?://[^/]*playscdn%.tv/")
+        or string.match(url, "%?_t=")
     ) then
     html = read_file(file)
-    if string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+$") then
+    if string.match(url, "^https?://[^/]*plays%.tv/playsapi/usersys/v1/user/") then
+      local data = load_json_file(html)
+      if data["id"] == nil or data["username"] == nil then
+        io.stdout:write("Could not get ID and/or username.")
+        io.stdout:flush()
+        abortgrab = true
+      end
+      ids[data["id"]] = true
+      ids[data["username"]] = true
+      check("https://plays.tv/playsapi/usersys/v1/user/" .. data["username"])
+      check("https://plays.tv/playsapi/usersys/v1/user/" .. data["id"])
+      check("https://plays.tv/ws/orbital/profile/" .. data["id"])
+      check("https://plays.tv/ws/orbital/profile/" .. data["id"] .. "?_orbitalapp=1")
+      check("https://plays.tv/u/" .. data["username"])
+      discovered["user:" .. data["id"]] = true
+    elseif string.match(url, "^https?://[^/]*plays%.tv/playsapi/feedsys/v1/media/") then
+      local data = load_json_file(html)
+      if data["feedId"] == nil then
+        io.stdout:write("Could not get feedId.")
+        io.stdout:flush()
+        abortgrab = true
+      end
+      check("https://plays.tv/video/" .. data["feedId"])
+    elseif string.match(url, "^https?://[^/]*plays%.tv/u/[^/]+$") then
       local user_id = string.match(html, '{"target_user_id":"([0-9a-f]+)","action":"report"}')
       if user_id == nil then
         io.stdout:write("Could not find target_user_id.")
@@ -272,10 +297,10 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   io.stdout:flush()
 
   if item_type == "user"
-      and string.match(url["url"], "^https://plays%.tv/u/[0-9a-zA-Z%-_]+$") then
-    ids[string.match(url["url"], "([0-9a-zA-Z%-_]+)$")] = true
+      and string.match(url["url"], "^https?://[^/]*plays%.tv/playsapi/usersys/v1/user/[0-9a-f]+$") then
+    ids[string.match(url["url"], "([0-9a-f]+)$")] = true
   elseif item_type == "video"
-      and string.match(url["url"], "^https://plays%.tv/video/[0-9a-f]+$") then
+      and string.match(url["url"], "^https?://[^/]*plays%.tv/playsapi/feedsys/v1/media/[0-9a-f]+$") then
     ids[string.match(url["url"], "([0-9a-f]+)$")] = true
   end
 

@@ -61,7 +61,7 @@ if not WGET_LUA:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20191209.03'
+VERSION = '20191210.01'
 USER_AGENT = 'Archive Team'
 TRACKER_ID = 'playstv'
 TRACKER_HOST = 'tracker.archiveteam.org'
@@ -195,18 +195,14 @@ class WgetArgs(object):
         item['item_type'] = item_type
         item['item_value'] = item_value
 
-        http_client = httpclient.HTTPClient()
-
         if item_type == 'user':
-            wget_args.extend(['--warc-header', 'playstv-user: ' + item_value])
-            wget_args.append('https://plays.tv/u/' + item_value)
+            wget_args.extend(['--warc-header', 'playstv-user-id: ' + item_value])
+            wget_args.append('https://plays.tv/playsapi/usersys/v1/user/' + item_value)
         elif item_type == 'video':
-            wget_args.extend(['--warc-header', 'playstv-video: ' + item_value])
-            wget_args.append('https://plays.tv/video/' + item_value)
+            wget_args.extend(['--warc-header', 'playstv-video-id: ' + item_value])
+            wget_args.append('https://plays.tv/playsapi/feedsys/v1/media/' + item_value)
         else:
             raise Exception('Unknown item')
-
-        http_client.close()
 
         if 'bind_address' in globals():
             wget_args.extend(['--bind-address', globals()['bind_address']])
