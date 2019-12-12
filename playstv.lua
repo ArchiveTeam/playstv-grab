@@ -49,6 +49,7 @@ allowed = function(url, parenturl)
       or string.match(url, "[<>\\%*%$;%^%[%],%(%){}]")
       or string.match(url, "^https?://[^/]*plays%.tv/game/")
       or string.match(url, "^https?://[^/]*plays%.tv/video/[0-9a-f]+/?.+[%?&]page=[0-9]")
+      or string.match(url, "%?_t=")
       or not (
         string.match(url, "^https?://[^/]*plays%.tv/")
         or string.match(url, "^https?://[^/]*akamaihd%.net/")
