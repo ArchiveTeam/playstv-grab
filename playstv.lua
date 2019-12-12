@@ -17,7 +17,9 @@ local ids = {}
 local allowed_urls = {}
 local discovered = {}
 
-ids[item_value] = true
+for s in string.gmatch(item_value, "([^;]+)") do
+    ids[s] = true
+end
 
 for ignore in io.open("ignore-list", "r"):lines() do
   downloaded[ignore] = true
@@ -46,7 +48,7 @@ allowed = function(url, parenturl)
   if string.match(url, "'+")
       or string.match(url, "[<>\\%*%$;%^%[%],%(%){}]")
       or string.match(url, "^https?://[^/]*plays%.tv/game/")
-      or string.match(url, "^https?://[^/]*plays%.tv/video/[0-9a-f]+/.+[%?&]page=[0-9]")
+      or string.match(url, "^https?://[^/]*plays%.tv/video/[0-9a-f]+/?.+[%?&]page=[0-9]")
       or not (
         string.match(url, "^https?://[^/]*plays%.tv/")
         or string.match(url, "^https?://[^/]*akamaihd%.net/")
