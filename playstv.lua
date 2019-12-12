@@ -304,6 +304,13 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   io.stdout:write(url_count .. "=" .. status_code .. " " .. url["url"] .. "  \n")
   io.stdout:flush()
 
+  if status_code == 404 and item_type == "video"
+      and string.match(url["url"], "^https?://[^/]*akamaihd%.net/") then
+    io.stdout:write("Content is not available.")
+    io.stdout:flush()
+    abortgrab = true
+  end
+
   --[[if item_type == "user"
       and string.match(url["url"], "^https?://[^/]*plays%.tv/playsapi/usersys/v1/user/[0-9a-f]+$") then
     ids[string.match(url["url"], "([0-9a-f]+)$")] = true
